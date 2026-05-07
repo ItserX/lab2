@@ -1,0 +1,7 @@
+{
+  "segments": 10,
+  "tolerance": 5e-7,
+  "refinementMultiplier": 2,
+  "maxSegments": 10000,
+  "tableStride": 1
+}
