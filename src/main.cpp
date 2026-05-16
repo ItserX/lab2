@@ -4,7 +4,6 @@
 #include <QApplication>
 #include <QColor>
 #include <QDoubleSpinBox>
-#include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHeaderView>
@@ -20,6 +19,7 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTextEdit>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QVector>
 #include <QWidget>
@@ -158,6 +158,8 @@ struct TaskWidgets {
     QLabel* title = nullptr;
     QLabel* status = nullptr;
     QTextEdit* note = nullptr;
+    QToolButton* graphsToggle = nullptr;
+    QWidget* graphsContainer = nullptr;
     PlotWidget* plotMain = nullptr;
     PlotWidget* plotDiff = nullptr;
     QTableWidget* table = nullptr;
@@ -172,7 +174,6 @@ public:
 private:
     QSpinBox* segmentsSpin_ = nullptr;
     QDoubleSpinBox* toleranceSpin_ = nullptr;
-    QSpinBox* refinementSpin_ = nullptr;
     QSpinBox* maxSegmentsSpin_ = nullptr;
     QSpinBox* strideSpin_ = nullptr;
     QLabel* variantLabel_ = nullptr;
@@ -199,7 +200,7 @@ private:
     }
 
     QGroupBox* buildInputGroup(QWidget* parent) {
-        auto* box = new QGroupBox(QString::fromUtf8("Input параметры"), parent);
+        auto* box = new QGroupBox(QString::fromUtf8("Параметры расчета"), parent);
         auto* form = new QFormLayout(box);
 
         segmentsSpin_ = new QSpinBox(box);
@@ -211,10 +212,6 @@ private:
         toleranceSpin_->setRange(1e-15, 1.0);
         toleranceSpin_->setValue(0.5e-6);
 
-        refinementSpin_ = new QSpinBox(box);
-        refinementSpin_->setRange(2, 10);
-        refinementSpin_->setValue(2);
-
         maxSegmentsSpin_ = new QSpinBox(box);
         maxSegmentsSpin_->setRange(4, 100000000);
         maxSegmentsSpin_->setValue(1000000);
@@ -223,11 +220,10 @@ private:
         strideSpin_->setRange(1, 10000);
         strideSpin_->setValue(1);
 
-        form->addRow(QString::fromUtf8("segments"), segmentsSpin_);
-        form->addRow(QString::fromUtf8("tolerance"), toleranceSpin_);
-        form->addRow(QString::fromUtf8("refinementMultiplier"), refinementSpin_);
-        form->addRow(QString::fromUtf8("maxSegments"), maxSegmentsSpin_);
-        form->addRow(QString::fromUtf8("tableStride"), strideSpin_);
+        form->addRow(QString::fromUtf8("Начальное число разбиений n"), segmentsSpin_);
+        form->addRow(QString::fromUtf8("Заданная точность ε"), toleranceSpin_);
+        form->addRow(QString::fromUtf8("Максимальное число разбиений n_max"), maxSegmentsSpin_);
+        form->addRow(QString::fromUtf8("Шаг вывода узлов в таблицу"), strideSpin_);
 
         return box;
     }
@@ -235,14 +231,11 @@ private:
     QHBoxLayout* buildButtonsRow(QWidget* parent) {
         auto* row = new QHBoxLayout();
         auto* runBtn = new QPushButton(QString::fromUtf8("Запустить расчет"), parent);
-        auto* saveBtn = new QPushButton(QString::fromUtf8("Сохранить JSON/CSV"), parent);
 
         row->addWidget(runBtn);
-        row->addWidget(saveBtn);
         row->addStretch();
 
         connect(runBtn, &QPushButton::clicked, this, [this]() { runAnalysis(); });
-        connect(saveBtn, &QPushButton::clicked, this, [this]() { saveOutputs(); });
 
         return row;
     }
@@ -266,8 +259,28 @@ private:
             w.note = new QTextEdit(page);
             w.note->setReadOnly(true);
             w.note->setMinimumHeight(110);
-            w.plotMain = new PlotWidget(page);
-            w.plotDiff = new PlotWidget(page);
+            w.graphsToggle = new QToolButton(page);
+            w.graphsToggle->setText(QString::fromUtf8("Графики"));
+            w.graphsToggle->setCheckable(true);
+            w.graphsToggle->setChecked(true);
+            w.graphsToggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+            w.graphsToggle->setArrowType(Qt::DownArrow);
+
+            w.graphsContainer = new QWidget(page);
+            auto* graphsLayout = new QVBoxLayout(w.graphsContainer);
+            graphsLayout->setContentsMargins(0, 0, 0, 0);
+            graphsLayout->setSpacing(6);
+
+            w.plotMain = new PlotWidget(w.graphsContainer);
+            w.plotDiff = new PlotWidget(w.graphsContainer);
+            graphsLayout->addWidget(w.plotMain);
+            graphsLayout->addWidget(w.plotDiff);
+
+            connect(w.graphsToggle, &QToolButton::toggled, page, [toggle = w.graphsToggle, container = w.graphsContainer](bool on) {
+                toggle->setArrowType(on ? Qt::DownArrow : Qt::RightArrow);
+                container->setVisible(on);
+            });
+
             w.table = new QTableWidget(page);
             w.table->setEditTriggers(QAbstractItemView::NoEditTriggers);
             w.table->setSelectionMode(QAbstractItemView::NoSelection);
@@ -276,8 +289,8 @@ private:
             layout->addWidget(w.title);
             layout->addWidget(w.status);
             layout->addWidget(w.note);
-            layout->addWidget(w.plotMain);
-            layout->addWidget(w.plotDiff);
+            layout->addWidget(w.graphsToggle);
+            layout->addWidget(w.graphsContainer);
             layout->addWidget(w.table, 1);
 
             taskViews_.push_back(w);
@@ -291,7 +304,6 @@ private:
         InputData input;
         input.segments = segmentsSpin_->value();
         input.tolerance = toleranceSpin_->value();
-        input.refinementMultiplier = refinementSpin_->value();
         input.maxSegments = maxSegmentsSpin_->value();
         input.tableStride = strideSpin_->value();
         return input;
@@ -413,8 +425,13 @@ private:
 
         w.plotMain->setData(mainTitle, mainSeries);
         w.plotDiff->setData(diffTitle, diffSeries);
-        w.plotMain->setVisible(!mainSeries.empty());
-        w.plotDiff->setVisible(!diffSeries.empty());
+        const bool showMain = !mainSeries.empty();
+        const bool showDiff = !diffSeries.empty();
+        const bool hasAnyGraph = showMain || showDiff;
+        w.plotMain->setVisible(showMain);
+        w.plotDiff->setVisible(showDiff);
+        w.graphsToggle->setVisible(hasAnyGraph);
+        w.graphsContainer->setVisible(hasAnyGraph && w.graphsToggle->isChecked());
     }
 
     void runAnalysis() {
@@ -424,9 +441,9 @@ private:
 
             std::ostringstream vinfo;
             vinfo << "Вариант " << lastResult_.variant.number
-                  << ": xi=" << lastResult_.variant.xi
-                  << ", mu1=" << lastResult_.variant.mu1
-                  << ", mu2=" << lastResult_.variant.mu2
+                  << ": ξ=" << lastResult_.variant.xi
+                  << ", μ1=" << lastResult_.variant.mu1
+                  << ", μ2=" << lastResult_.variant.mu2
                   << "; k1=" << lastResult_.variant.k1
                   << ", k2=" << lastResult_.variant.k2
                   << ", q1=" << lastResult_.variant.q1
@@ -447,26 +464,6 @@ private:
             QMessageBox::critical(this, QString::fromUtf8("Ошибка"), QString::fromUtf8(ex.what()));
         }
     }
-
-    void saveOutputs() {
-        if (lastResult_.tasks.empty()) {
-            QMessageBox::information(this, QString::fromUtf8("Нет данных"), QString::fromUtf8("Сначала выполните расчет."));
-            return;
-        }
-
-        const QString outDir = QFileDialog::getExistingDirectory(this, QString::fromUtf8("Выберите папку для сохранения"));
-        if (outDir.isEmpty()) {
-            return;
-        }
-
-        try {
-            writeCsvTables(outDir.toStdString(), lastResult_);
-            writeResultJson((outDir + "/result.json").toStdString(), lastResult_);
-            QMessageBox::information(this, QString::fromUtf8("Готово"), QString::fromUtf8("Файлы result.json и CSV сохранены."));
-        } catch (const std::exception& ex) {
-            QMessageBox::critical(this, QString::fromUtf8("Ошибка сохранения"), QString::fromUtf8(ex.what()));
-        }
-    }
 };
 
 }  // namespace
@@ -477,4 +474,3 @@ int main(int argc, char* argv[]) {
     window.show();
     return app.exec();
 }
-

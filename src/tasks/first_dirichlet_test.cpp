@@ -36,12 +36,12 @@ struct AnalyticSolution {
 TestCoefficients makeTestCoefficients(const VariantData& variant) {
     const double xi = variant.xi;
     TestCoefficients tc{};
-    tc.kLeft = 1.0;
-    tc.kRight = std::exp(xi * xi);
-    tc.qLeft = xi * xi;
-    tc.qRight = 1.0 + xi * xi * xi * xi;
-    tc.fLeft = xi * xi - 1.0;
-    tc.fRight = 1.0;
+    tc.kLeft = xi + 1.0;
+    tc.kRight = xi;
+    tc.qLeft = xi;
+    tc.qRight = xi * xi;
+    tc.fLeft = xi;
+    tc.fRight = std::exp(-xi);
     return tc;
 }
 
@@ -208,7 +208,7 @@ TaskResult runFirstDirichletTestTask(const InputData& input, const VariantData& 
         "first-dirichlet-test",
         "Первая краевая тестовая задача",
         "1. Тестовая",
-        "u(0)=mu1, u(1)=mu2",
+        "u(0)=0, u(1)=1",
         "Метод баланса, тестовая задача с аналитическим решением",
         "Исполнитель 1",
         makeTestTaskColumns());

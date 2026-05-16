@@ -12,16 +12,16 @@ struct InputData {
 };
 
 struct VariantData {
-    int number = 8;
-    double xi = 0.0;
-    double mu1 = 2.0;
+    int number = 1;
+    double xi = 0.4;
+    double mu1 = 0.0;
     double mu2 = 1.0;
-    std::string k1 = "1";
-    std::string k2 = "exp(x^2)";
-    std::string q1 = "x^2";
-    std::string q2 = "1 + x^4";
-    std::string f1 = "x^2 - 1";
-    std::string f2 = "1";
+    std::string k1 = "x + 1";
+    std::string k2 = "x";
+    std::string q1 = "x";
+    std::string q2 = "x^2";
+    std::string f1 = "x";
+    std::string f2 = "exp(-x)";
 };
 
 struct TableColumn {

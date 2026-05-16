@@ -179,7 +179,6 @@ struct RefinedSolution {
 RefinedSolution solveWithRefinement(const InputData& input, const VariantData& variant) {
     int n = std::max(1, input.segments);
     const int maxN = std::max(n, input.maxSegments);
-    const int multiplier = std::max(2, input.refinementMultiplier);
 
     while (true) {
         GridSolution coarse = solveForN(n, variant);
@@ -187,11 +186,11 @@ RefinedSolution solveWithRefinement(const InputData& input, const VariantData& v
         AccuracyCheck check = compareOnCommonNodes(coarse, fine);
         const bool meetsTolerance = check.epsilon <= input.tolerance;
 
-        if (meetsTolerance || n >= maxN || n > maxN / multiplier) {
+        if (meetsTolerance || n >= maxN || n > maxN / 2) {
             return RefinedSolution{std::move(coarse), std::move(fine), check, meetsTolerance};
         }
 
-        n *= multiplier;
+        n *= 2;
     }
 }
 
@@ -234,7 +233,7 @@ TaskResult runMixedMainImprovedTask(const InputData& input, const VariantData& v
         "4. Смешанная основная, улучш. ГУ",
         "u(0)=mu1, k(1)u'(1)=mu2",
         "Метод баланса на правой половинной ячейке",
-        "Смешанная краевая основная задача, улучш. аппрокс. ГУ",
+        "Исполнитель 4",
         makeMainTaskColumns());
 
     const RefinedSolution solution = solveWithRefinement(input, variant);
@@ -252,7 +251,7 @@ TaskResult runMixedMainImprovedTask(const InputData& input, const VariantData& v
          << ", x = " << std::setprecision(10) << solution.check.x << ".\n"
          << "Статус точности: " << (solution.meetsTolerance ? "достигнута" : "не достигнута в пределах maxSegments") << ".";
 
-    task.status = solution.meetsTolerance ? "done" : "done_tolerance_not_reached";
+    task.status = solution.meetsTolerance ? "done" : "warning";
     task.note = note.str();
     return task;
 }

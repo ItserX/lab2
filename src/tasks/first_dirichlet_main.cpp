@@ -9,9 +9,9 @@
 #include <iomanip>
 
 namespace {
-    double k(double x, double xi) { return (x <= xi) ? 1.0 : std::exp(x * x); }
-    double q(double x, double xi) { return (x <= xi) ? (x * x) : (1.0 + x * x * x * x); }
-    double f(double x, double xi) { return (x <= xi) ? (x * x - 1.0) : 1.0; }
+    double k(double x, double xi) { return (x <= xi) ? (x + 1.0) : x; }
+    double q(double x, double xi) { return (x <= xi) ? x : (x * x); }
+    double f(double x, double xi) { return (x <= xi) ? x : std::exp(-x); }
 
     template <typename Func>
     double integrate(Func func, double a, double b, double xi, int steps = 200) {
@@ -82,14 +82,12 @@ TaskResult runFirstDirichletMainTask(const InputData& input, const VariantData& 
         "first-dirichlet-main",
         "Первая краевая основная задача",
         "2. Основная",
-        "u(0) = 2, u(1) = 1",
+        "u(0) = 0, u(1) = 1",
         "Метод баланса, сравнение сеток n и 2n",
         "Исполнитель 2",
         makeMainTaskColumns()
     );
     int n = std::max(2, input.segments);
-    int mult = std::max(2, input.refinementMultiplier);
-    
     double xi = variant.xi;
     double mu1 = variant.mu1;
     double mu2 = variant.mu2;
@@ -102,17 +100,17 @@ TaskResult runFirstDirichletMainTask(const InputData& input, const VariantData& 
     bool accuracy_achieved = false;
     bool comparison_performed = false;
 
-    while (1LL * n * mult <= input.maxSegments) {
+    while (1LL * n * 2 <= input.maxSegments) {
         comparison_performed = true;
         v = solveGrid(n, xi, mu1, mu2);
-        v2 = solveGrid(n * mult, xi, mu1, mu2);
+        v2 = solveGrid(n * 2, xi, mu1, mu2);
 
         max_diff = 0.0;
         max_x = 0.0;
         max_i = 0;
 
         for (int i = 0; i <= n; ++i) {
-            double diff = std::abs(v[i] - v2[i * mult]);
+            double diff = std::abs(v[i] - v2[i * 2]);
             if (diff > max_diff) {
                 max_diff = diff;
                 max_x = i * (1.0 / n);
@@ -125,8 +123,8 @@ TaskResult runFirstDirichletMainTask(const InputData& input, const VariantData& 
             break;
         }
 
-        const int next_n = n * mult;
-        if (1LL * next_n * mult > input.maxSegments) {
+        const int next_n = n * 2;
+        if (1LL * next_n * 2 > input.maxSegments) {
             break;
         }
 
@@ -136,8 +134,8 @@ TaskResult runFirstDirichletMainTask(const InputData& input, const VariantData& 
     std::ostringstream noteStr;
 
     if (!comparison_performed) {
-        noteStr << "Невозможно построить уточненную сетку для сравнения: n * "
-                << mult << " = " << (1LL * n * mult)
+        noteStr << "Невозможно построить уточненную сетку для сравнения: 2n = "
+                << (1LL * n * 2)
                 << " больше maxSegments = " << input.maxSegments << ".\n"
                 << "Увеличьте max n или уменьшите начальное n.";
         task.note = noteStr.str();
@@ -170,8 +168,8 @@ TaskResult runFirstDirichletMainTask(const InputData& input, const VariantData& 
         row.x = i * (1.0 / n);
         row.u = 0.0;
         row.v = v[i];
-        row.v2 = v2[i * mult];
-        row.difference = v[i] - v2[i * mult];
+        row.v2 = v2[i * 2];
+        row.difference = v[i] - v2[i * 2];
         task.rows.push_back(row);
     }
 
@@ -181,8 +179,8 @@ TaskResult runFirstDirichletMainTask(const InputData& input, const VariantData& 
         row.x = 1.0;
         row.u = 0.0;
         row.v = v[n];
-        row.v2 = v2[n * mult];
-        row.difference = v[n] - v2[n * mult];
+        row.v2 = v2[n * 2];
+        row.difference = v[n] - v2[n * 2];
         task.rows.push_back(row);
     }
 

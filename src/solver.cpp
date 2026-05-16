@@ -249,7 +249,16 @@ ProjectResult runProjectAnalysis(const InputData& inputData) {
 
     ProjectResult result;
     result.input = input;
-    result.variant.xi = 1.0 / std::sqrt(3.0);
+    result.variant.number = 1;
+    result.variant.xi = 0.4;
+    result.variant.mu1 = 0.0;
+    result.variant.mu2 = 1.0;
+    result.variant.k1 = "x + 1";
+    result.variant.k2 = "x";
+    result.variant.q1 = "x";
+    result.variant.q2 = "x^2";
+    result.variant.f1 = "x";
+    result.variant.f2 = "exp(-x)";
 
     result.tasks.push_back(runFirstDirichletTestTask(input, result.variant));
     result.tasks.push_back(runFirstDirichletMainTask(input, result.variant));
